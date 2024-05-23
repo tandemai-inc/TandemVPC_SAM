@@ -1,0 +1,1 @@
+This lambda function splits the given cidr range to public and private CIDR range

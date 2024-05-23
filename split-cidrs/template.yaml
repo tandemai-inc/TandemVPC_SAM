@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Split CIDR
+
+
+Parameters:
+  AZList:
+    Type: String
+    Description: "List of Availability Zones. This has to be strings. "
+
+  VpcId:
+    Description: The vpc id
+    Type: String
+    Default: ''
+
+  Region:
+    Description: Region
+    Type: String
+    Default: ''
+
+  VpcCIDR:
+    Description: "The CIDR for the VPC if it will be created - only considered if VpcId is left blank. Do not set hostbit. 10.0.0.1/18 is invalid."
+    Default: 10.0.0.0/16
+    Type: String
+
+  AvailableCIDR:
+    Description: "The Available CIDR for the VPC - only considered if VpcId is provided. Do not set hostbit. 10.0.0.1/18 is invalid."
+    Default: 10.0.0.0/16
+    Type: String
+
+Resources:
+  ProcessNetworkInfoLambdaFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Description: Lambda function that splits given CIDR range into multiple ones
+      Timeout: 120
+      Role:
+        Fn::GetAtt: [ListSubnetsFunctionRole, Arn]
+
+  NetworkInfoList:
+    Type: Custom::NetworkInfoList
+    Properties:
+      ServiceToken: !GetAtt ProcessNetworkInfoLambdaFunction.Arn
+      AZList: !Ref AZList
+      Region: !Ref Region
+      VpcCIDR: !Ref VpcCIDR
+      AvailableCIDR: !Ref AvailableCIDR
+      VpcId: !Ref VpcId
+          
+  # Role to execute the Lambda function
+  ListSubnetsFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "ListSubnetsFunctionRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: SFNXDeployWorkflowDefinitionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:Get*"
+                Resource: "*"
+      
+Outputs:
+  letters_only:
+    Description: "Letters on AZ"
+    Value: !GetAtt NetworkInfoList.letters_only
+  
+  IndexList:
+    Description: "Index list of subnets"
+    Value: !GetAtt NetworkInfoList.IndexList
+  
+  PublicSubnetCidrs:
+    Description: "Public subnet CIDR ranges"
+    Value: !GetAtt NetworkInfoList.PublicSubnetCidrs
+
+  PrivateSubnetCidrs:
+    Description: "Private subnet CIDR ranges"
+    Value: !GetAtt NetworkInfoList.PrivateSubnetCidrs

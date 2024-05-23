@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  list-subnets
+
+
+Parameters:
+  AZList:
+    Type: String
+    Description: "List of Availability Zones to create subnets in. E.g., 'a,b,c'"
+
+  VpcId:
+    Description: The vpc id
+    Type: String
+    Default: ''
+
+  Region:
+    Description: Region
+    Type: String
+    Default: ''
+
+Resources:
+  SubnetListFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Description: Lambda function that list the subnets
+      Timeout: 120
+      Role:
+        Fn::GetAtt: [ListSubnetsFunctionRole, Arn]
+
+          
+  SubnetList:
+    Type: Custom::SubnetList
+    Properties:
+      ServiceToken: !GetAtt SubnetListFunction.Arn
+      VpcId: !Ref VpcId
+      AZList: !Ref AZList
+      SubnetRegion: !Ref Region
+
+  # Role to execute the Lambda function
+  ListSubnetsFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "ListSubnetsFunctionRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: ec2describe
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeSubnets
+                Resource: '*'
+        - PolicyName: SFNXDeployWorkflowDefinitionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:Get*"
+                Resource: "*"
+      
+Outputs:
+  PublicSubnets:
+    Description: "Comma-separated list of public subnet IDs"
+    Value: !GetAtt SubnetList.PublicSubnetIds
+  
+  PrivateSubnets:
+    Description: "Comma-separated list of private subnet IDs"
+    Value: !GetAtt SubnetList.PrivateSubnetIds
+  
+  PrivateSubnetsWithoutPrefix:
+    Description: "Comma-separated list of private subnet IDs"
+    Value: !GetAtt SubnetList.PrivateSubnetIdsOnly
+
+  FirstAZPrivateSubnetId:
+    Description: "The ID of the first private subnet in the first availability zone"
+    Value: !GetAtt SubnetList.FirstAZPrivateSubnetId
