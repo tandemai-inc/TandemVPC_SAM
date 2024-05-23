@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Delete a cert
+
+
+Parameters:
+  DomainCertificateArn:
+    Type: String
+    Description: ARN for domain certificate
+
+Resources:
+  CleanupLambda:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Description: Lambda function to cleanup resources
+      Timeout: 900
+      MemorySize: 128
+      Role:
+        Fn::GetAtt: [CleanupLambdaRole, Arn]
+
+          
+  Cleanup:
+    Type: Custom::CleanupLambda
+    Properties:
+      ServiceToken: !GetAtt CleanupLambda.Arn
+      DomainCertificateArn: !Ref DomainCertificateArn
+
+
+  # Role to execute the Lambda function
+  CleanupLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "CleanupLambdaRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: DeleteDomainCertificate
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - acm:DeleteCertificate
+                Resource: !Ref DomainCertificateArn
+        - PolicyName: SFNXDeployWorkflowDefinitionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:Get*"
+                Resource: "*"

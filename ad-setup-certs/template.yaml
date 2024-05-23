@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Import the domain certificate into ACM
+
+
+Parameters:
+  DomainCertificateSecretArn:
+    Type: String
+    Description: ARN for Domain Cert Secret
+    NoEcho: true
+
+  DomainPrivateKeySecretArn:
+    Type: String
+    Description: ARN for Domain Private Key Secret
+    NoEcho: true
+
+  ParentStackId:
+    Type: String
+    Description: The stack that owns the domain cert
+
+Resources:
+  DomainCertificateSetupLambda:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Description: Lambda function that sets up AD cert
+      Timeout: 300
+      MemorySize: 128
+      Role:
+        Fn::GetAtt: [DomainCertificateSetupLambdaRole, Arn]
+
+          
+  DomainCertificateSetup:
+    Type: Custom::DomainCertificateSetupLambda
+    Properties:
+      ServiceToken: !GetAtt DomainCertificateSetupLambda.Arn
+      DomainCertificateSecretArn: !Ref DomainCertificateSecretArn
+      DomainPrivateKeySecretArn: !Ref DomainPrivateKeySecretArn
+
+
+  # Role to execute the Lambda function
+  DomainCertificateSetupLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "PostRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: ManageDomainCertificate
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - acm:ImportCertificate
+                  - acm:AddTagsToCertificate
+                Resource: !Sub arn:${AWS::Partition}:acm:${AWS::Region}:${AWS::AccountId}:certificate/*
+                Condition:
+                  StringEquals:
+                    aws:RequestTag/StackId: !Ref ParentStackId
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref DomainCertificateSecretArn
+                  - !Ref DomainPrivateKeySecretArn    
+        - PolicyName: SFNXDeployWorkflowDefinitionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:Get*"
+                Resource: "*"
+
+Outputs:
+  DomainCertificateArn:
+    Description: "DomainCertificateArn"
+    Value: !GetAtt DomainCertificateSetup.DomainCertificateArn

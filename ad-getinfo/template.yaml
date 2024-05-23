@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Get Active Directory Info
+
+
+Parameters:
+  DomainName:
+    Description: AD Domain Name.
+    Type: String
+    Default: tandemai.com
+    AllowedPattern: ^([a-zA-Z0-9]+[\\.-])+([a-zA-Z0-9])+$
+
+  Vpc:
+    Description: VPC ID to create the Directory Service in
+    Type: AWS::EC2::VPC::Id
+
+  DirectoryId:
+    Description: Directory ID
+    Type: String
+    Default: ''
+
+Resources:
+  PrepLambda:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Description: Lambda function that get AD info
+      Timeout: 300
+      MemorySize: 128
+      Role:
+        Fn::GetAtt: [PrepRole, Arn]
+
+  Prep:
+    Type: Custom::PrepLambda
+    Properties:
+      ServiceToken: !GetAtt PrepLambda.Arn
+      DomainName: !Ref DomainName
+      Vpc: !Ref Vpc
+      DirectoryId: !Ref DirectoryId
+ 
+  # Role to execute the Lambda function
+  PrepRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "PrepRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: DescribeDirectory
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ds:DescribeDirectories
+                Resource: '*'
+        - PolicyName: SFNXDeployWorkflowDefinitionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:Get*"
+                Resource: "*"
+      
+Outputs:
+  DnsIpAddress1:
+    Description: "Dns IP address 1"
+    Value: !GetAtt Prep.DnsIpAddress1
+  
+  DnsIpAddress2:
+    Description: "Dns IP address 2"
+    Value: !GetAtt Prep.DnsIpAddress2
+  
+  DnsIpAddresses:
+    Description: "Dns IP addresses"
+    Value: !GetAtt Prep.DnsIpAddresses
+
+  DomainShortName:
+    Description: "Domain short name"
+    Value: !GetAtt Prep.DomainShortName
+
+  DomainName:
+    Description: "Domain short name"
+    Value: !Ref DomainName

@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Resets Ad passwords 
+
+
+Parameters:
+  ADAdminSecretArn:
+    Type: String
+    Description: Amin password Secret ARN
+    NoEcho: true
+
+  ADReadOnlySecretArn:
+    Type: String
+    Description: Read only Secret ARN
+    NoEcho: true
+
+  DirectoryId:
+    Description: Directory ID
+    Type: String
+    Default: ''
+
+Resources:
+  PostLambda:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Description: Lambda function that resets password in a given Directory with given Secret ARNs
+      Timeout: 300
+      MemorySize: 128
+      Role:
+        Fn::GetAtt: [PostRole, Arn]
+
+          
+  Post:
+    Type: Custom::PostLambda
+    Properties:
+      ServiceToken: !GetAtt PostLambda.Arn
+      DirectoryId: !Ref DirectoryId
+      AdminPassword: !Ref ADAdminSecretArn 
+      ReadOnlyPassword: !Ref ADReadOnlySecretArn
+
+
+  # Role to execute the Lambda function
+  PostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "PostRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: ResetPassword
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ds:ResetUserPassword
+                Resource: !Sub
+                  - arn:${AWS::Partition}:ds:${AWS::Region}:${AWS::AccountId}:directory/${DirectoryId}
+                  - { DirectoryId: !Ref DirectoryId }
+        - PolicyName: LamdbaCanGetSecretValue
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - secretsmanager:GetSecretValue
+                Resource: 
+                  - !Ref ADAdminSecretArn
+                  - !Ref ADReadOnlySecretArn
+        - PolicyName: SFNXDeployWorkflowDefinitionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:Get*"
+                Resource: "*"
