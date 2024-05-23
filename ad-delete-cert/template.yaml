@@ -34,7 +34,6 @@ Resources:
   CleanupLambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: "CleanupLambdaRole"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
