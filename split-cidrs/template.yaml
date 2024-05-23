@@ -75,7 +75,7 @@ Resources:
                 Resource: "*"
       
 Outputs:
-  letters_only:
+  lettersonly:
     Description: "Letters on AZ"
     Value: !GetAtt NetworkInfoList.letters_only
   
