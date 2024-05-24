@@ -15,10 +15,6 @@ Parameters:
     Description: ARN for Domain Private Key Secret
     NoEcho: true
 
-  ParentStackId:
-    Type: String
-    Description: The stack that owns the domain cert
-
 Resources:
   DomainCertificateSetupLambda:
     Type: AWS::Serverless::Function 
@@ -67,7 +63,7 @@ Resources:
                 Resource: !Sub arn:${AWS::Partition}:acm:${AWS::Region}:${AWS::AccountId}:certificate/*
                 Condition:
                   StringEquals:
-                    aws:RequestTag/StackId: !Ref ParentStackId
+                    aws:RequestTag/StackId: !Ref AWS::StackId
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
