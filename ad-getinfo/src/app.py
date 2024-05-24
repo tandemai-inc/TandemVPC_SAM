@@ -19,8 +19,12 @@ def lambda_handler(event, context):
     # Debug: Print out what is inside ResourceProperties
     print("ResourceProperties: " +  str(event['ResourceProperties']))
 
+    print("Get directory details")
     directory = ds.describe_directories(DirectoryIds=[directory_id])['DirectoryDescriptions'][0]
+    
+    print("Get DNS Ips")
     dns_ip_addrs = directory['DnsIpAddrs']
+    print(dns_ip_addrs)
 
     response_data = {}
     reason = None
@@ -36,10 +40,10 @@ def lambda_handler(event, context):
         response_data['DomainShortName'] = domain.split(".")[0].upper() if domain else "N/A"
         response_data['VpcId'] = vpc_id
 
-        response_data['DnsIpAddresses'] = dns_ip_addrs
+        response_data['DnsIpAddresses'] = ','.join(list(dns_ip_addrs))
         for i, addr in enumerate(dns_ip_addrs, start=1):
             response_data[f'DnsIpAddress{i}'] = addr
     else:
         physical_resource_id = event.get('PhysicalResourceId', 'N/A')
-
+    print(f"Send {response_data}")
     cfnresponse.send(event, context, response_status, response_data, physical_resource_id, reason)

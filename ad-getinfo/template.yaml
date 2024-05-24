@@ -13,7 +13,7 @@ Parameters:
 
   Vpc:
     Description: VPC ID to create the Directory Service in
-    Type: AWS::EC2::VPC::Id
+    Type: String
 
   DirectoryId:
     Description: Directory ID
