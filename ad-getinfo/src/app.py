@@ -10,15 +10,14 @@ def create_physical_resource_id():
 
 def lambda_handler(event, context):
     ds = boto3.client("ds")
-    print(event)
     print( 'boto version {}'.format(boto3.__version__))
-    print("Received event: " + event)
+    print(event)
     domain = event['ResourceProperties'].get('DomainName')
     vpc_id = event['ResourceProperties'].get('Vpc')
     directory_id = event['ResourceProperties'].get('DirectoryId')
 
     # Debug: Print out what is inside ResourceProperties
-    print("ResourceProperties: " +  event['ResourceProperties'])
+    print("ResourceProperties: " +  str(event['ResourceProperties']))
 
     directory = ds.describe_directories(DirectoryIds=[directory_id])['DirectoryDescriptions'][0]
     dns_ip_addrs = directory['DnsIpAddrs']
