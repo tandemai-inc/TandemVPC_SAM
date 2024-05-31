@@ -41,7 +41,6 @@ Resources:
   DomainCertificateSetupLambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: "PostRole"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
