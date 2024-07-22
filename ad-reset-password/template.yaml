@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Resets Ad passwords 
+  Resets Ad passwords
 
 
 Parameters:
@@ -22,7 +22,7 @@ Parameters:
 
 Resources:
   PostLambda:
-    Type: AWS::Serverless::Function 
+    Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/
       Handler: app.lambda_handler
@@ -33,13 +33,13 @@ Resources:
       Role:
         Fn::GetAtt: [PostRole, Arn]
 
-          
+
   Post:
     Type: Custom::PostLambda
     Properties:
       ServiceToken: !GetAtt PostLambda.Arn
       DirectoryId: !Ref DirectoryId
-      AdminPassword: !Ref ADAdminSecretArn 
+      AdminPassword: !Ref ADAdminSecretArn
       ReadOnlyPassword: !Ref ADReadOnlySecretArn
 
 
@@ -71,9 +71,9 @@ Resources:
           PolicyDocument:
             Statement:
               - Effect: Allow
-                Action: 
+                Action:
                   - secretsmanager:GetSecretValue
-                Resource: 
+                Resource:
                   - !Ref ADAdminSecretArn
                   - !Ref ADReadOnlySecretArn
         - PolicyName: SFNXDeployWorkflowDefinitionPolicy

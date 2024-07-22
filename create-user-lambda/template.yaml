@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Create AD users and set up certificates
+
+Parameters:
+  AdminSecretArn:
+    Type: String
+    Description: Admin password Secret ARN
+    NoEcho: true
+
+  DomainCertificateSecretArn:
+    Type: String
+    Description: ARN for Domain Cert Secret
+    NoEcho: true
+
+  DomainPrivateKeySecretArn:
+    Type: String
+    Description: ARN for Domain Private Key Secret
+    NoEcho: true
+
+  DirectoryDomain:
+    Type: String
+    Description: Directory domain name
+
+  DnsIp1:
+    Type: String
+    Description: First DNS IP address
+
+  DnsIp2:
+    Type: String
+    Description: Second DNS IP address
+
+  DirectoryId:
+    Description: Directory ID
+    Type: String
+    Default: ''
+
+  ComputeNodeSubnets:
+    Description: List of subnets for compute nodes, spread across different AZs
+    Type: List<AWS::EC2::Subnet::Id>
+
+  LambdaLdapSecurityGroup:
+    Description: Security group for Lambda to access LDAP
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+  CreateUserLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Description: Lambda function to create AD users and set up certificates
+      Timeout: 300
+      MemorySize: 128
+      Role:
+        Fn::GetAtt: [CreateUserLambdaRole, Arn]
+      Environment:
+        Variables:
+          ADMIN_PASSWORD: !Ref AdminSecretArn
+      Layers:
+        - arn:aws:lambda:us-west-2:065937680647:layer:ldap3layer:1
+        - arn:aws:lambda:us-west-2:065937680647:layer:openssllayer:1
+      VpcConfig:
+        SubnetIds: !Ref ComputeNodeSubnets
+        SecurityGroupIds:
+          - !Ref LambdaLdapSecurityGroup
+
+  CreateUser:
+    Type: Custom::CreateUser
+    Properties:
+      ServiceToken: !GetAtt CreateUserLambda.Arn
+      DirectoryDomain: !Ref DirectoryDomain
+      DnsIp1: !Ref DnsIp1
+      DnsIp2: !Ref DnsIp2
+      DirectoryId: !Ref DirectoryId
+      AdminSecretArn: !Ref AdminSecretArn
+      DomainCertificateSecretArn: !Ref DomainCertificateSecretArn
+      DomainPrivateKeySecretArn: !Ref DomainPrivateKeySecretArn
+
+  CreateUserLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: LambdaExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:PutSecretValue
+                  - lambda:InvokeFunction
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
+        - PolicyName: LambdaDSandACMPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ds:CreateUser
+                  - ds:ResetUserPassword
+                  - acm:ImportCertificate
+                  - acm:AddTagsToCertificate
+                Resource: "*"
+        - PolicyName: SFNXDeployWorkflowDefinitionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:Get*
+                Resource: "*"
+
+Outputs:
+  CreateUserLambdaArn:
+    Description: "ARN of the CreateUser Lambda function"
+    Value: !GetAtt CreateUserLambda.Arn
