@@ -64,10 +64,6 @@ Resources:
       MemorySize: 128
       Role:
         Fn::GetAtt: [CreateUserLambdaRole, Arn]
-      Environment:
-        Variables:
-          ADMIN_PASSWORD: !Ref AdminSecretArn
-          READ_ONLY_PASSWORD: !Ref ADReadOnlySecret
       Layers:
         - arn:aws:lambda:us-west-2:065937680647:layer:ldap3layer:1
         - arn:aws:lambda:us-west-2:065937680647:layer:openssllayer:1
