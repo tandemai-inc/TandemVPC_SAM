@@ -43,7 +43,8 @@ def create_certificate(domain):
         private_key = f"/tmp/{domain}.key"
         certificate = f"/tmp/{domain}.crt"
         cmd = [
-            "openssl", "req", "-x509", "-sha256", "-nodes", "-newkey", "rsa:2048",
+            "/var/task/openssl",  # Reference the openssl binary correctly
+            "req", "-x509", "-sha256", "-nodes", "-newkey", "rsa:2048",
             "-keyout", private_key, "-days", "365", "-out", certificate,
             "-subj", f"/CN={domain}"
         ]
