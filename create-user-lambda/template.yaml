@@ -53,10 +53,10 @@ Resources:
   CreateUserLambda:
     Type: AWS::Serverless::Function
     Properties:
-      # CodeUri: src/
-      CodeUri:
-        Bucket: tandemserverless-dev
-        Key: master/create-user-lambda/createuser-withopenssl.zip
+      CodeUri: src/
+      # CodeUri:
+      #   Bucket: tandemserverless-dev
+      #   Key: master/create-user-lambda/createuser-withopenssl.zip
       Handler: app.lambda_handler
       Runtime: python3.8
       Description: Lambda function to create AD users and set up certificates
