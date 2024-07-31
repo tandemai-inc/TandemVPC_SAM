@@ -23,10 +23,10 @@ def get_secret(secret_name):
         print(f"Error retrieving secret {secret_name}: {e}")
         raise
 
-def create_user(conn, dn, user_attributes):
+def create_user(conn, dn, user_attributes, ad_search_base):
     try:
         search_filter = f"(cn={user_attributes['cn']})"
-        if conn.search(search_base='OU=Users,OU=tandemai,DC=tandemai,DC=com', search_filter=search_filter, search_scope='SUBTREE', attributes='cn'):
+        if conn.search(search_base=ad_search_base, search_filter=search_filter, search_scope='SUBTREE', attributes='cn'):
             print(f"User {dn} already exists")
         else:
             conn.add(dn, attributes=user_attributes)
@@ -75,6 +75,7 @@ def lambda_handler(event, context):
         directory_id = properties.get('DirectoryId')
         cert_secret_arn = properties.get('DomainCertificateSecretArn')
         key_secret_arn = properties.get('DomainPrivateKeySecretArn')
+        ad_search_base = properties.get('SearchBase') # OU=Users,OU=example,DC=example,DC=com
 
         if not all([secret_name, directory_domain, dns_ip1, dns_ip2, directory_id, cert_secret_arn, key_secret_arn]):
             raise KeyError("One or more required properties are missing")
@@ -95,7 +96,7 @@ def lambda_handler(event, context):
         readonly_password = str(uuid.uuid4())
         tandemviz_password = str(uuid.uuid4())
 
-        readonly_user_dn = "CN=ReadOnlyUser,OU=Users,OU=tandemai,DC=tandemai,DC=com"
+        readonly_user_dn = f"CN=ReadOnlyUser,{ad_search_base}"
         readonly_user_attributes = {
             'objectClass': ['top', 'person', 'organizationalPerson', 'user'],
             'cn': 'ReadOnlyUser',
@@ -106,7 +107,7 @@ def lambda_handler(event, context):
         create_user(conn, readonly_user_dn, readonly_user_attributes)
         response_data['ReadOnlyUserPassword'] = readonly_password
 
-        tandemviz_user_dn = "CN=tandemviz,OU=Users,OU=tandemai,DC=tandemai,DC=com"
+        tandemviz_user_dn = f"CN=tandemviz,{ad_search_base}"
         tandemviz_user_attributes = {
             'objectClass': ['top', 'person', 'organizationalPerson', 'user'],
             'cn': 'tandemviz',
@@ -114,7 +115,7 @@ def lambda_handler(event, context):
             'userPassword': tandemviz_password,
             'sAMAccountName': 'tandemviz'
         }
-        create_user(conn, tandemviz_user_dn, tandemviz_user_attributes)
+        create_user(conn, tandemviz_user_dn, tandemviz_user_attributes, ad_search_base)
         response_data['TandemvizPassword'] = tandemviz_password
 
         # Create and store the certificate
