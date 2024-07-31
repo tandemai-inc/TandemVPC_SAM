@@ -56,7 +56,7 @@ Resources:
       CodeUri: src/
       # CodeUri:
       #   Bucket: tandemserverless-dev
-      #   Key: master/create-user-lambda/createuser-withopenssl.zip
+      #   Key: master/create-user-lambda/CreateUserLambda_openssl.zip
       Handler: app.lambda_handler
       Runtime: python3.8
       Description: Lambda function to create AD users and set up certificates

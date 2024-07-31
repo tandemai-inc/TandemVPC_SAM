@@ -60,6 +60,7 @@ def create_certificate(domain):
 
 def lambda_handler(event, context):
     print("lambda location", os.getcwd())
+
     print("Lambda function is starting")
     print(f"Event received: {json.dumps(event)}")
     response_status = cfnresponse.SUCCESS
