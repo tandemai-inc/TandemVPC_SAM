@@ -104,7 +104,7 @@ def lambda_handler(event, context):
             'userPassword': readonly_password,
             'sAMAccountName': 'ReadOnlyUser'
         }
-        create_user(conn, readonly_user_dn, readonly_user_attributes)
+        create_user(conn, readonly_user_dn, readonly_user_attributes, ad_search_base)
         response_data['ReadOnlyUserPassword'] = readonly_password
 
         tandemviz_user_dn = f"CN=tandemviz,{ad_search_base}"
