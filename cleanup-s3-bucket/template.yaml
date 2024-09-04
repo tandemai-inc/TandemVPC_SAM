@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  cleanup S3 bucket
+
+
+Parameters:
+  S3Bucket:
+    Type: String
+    Description: "S3 Bucket"
+
+Resources:
+  CleanupS3bucketFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: src/
+      Handler: app.handler
+      Runtime: python3.9
+      Description: Lambda function that cleanup given S3 bucket
+      Timeout: 120
+      Role:
+        Fn::GetAtt: [LambdaFunctionRole, Arn]
+
+  CleanupS3bucketCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      S3Bucket: !Ref S3Bucket
+      ServiceToken: !GetAtt CleanupS3bucketFunction.Arn
+
+  LambdaFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: CanListAndDeleteObjectsInBucket
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:*Object"
+                  - "s3:ListBucket"
+                  - "s3:ListBucketVersions"
+                Resource:
+                  - !Sub "arn:aws:s3:::${S3Bucket}"
+                  - !Sub "arn:aws:s3:::${S3Bucket}/*"
