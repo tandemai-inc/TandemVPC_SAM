@@ -533,8 +533,6 @@ Resources:
           PasswordSecretArn: !Ref ADPasswordSecretArn
           DomainReadOnlyUser: !Ref ADReadonlyUser
           LdapTlsReqCert: never
-          AdditionalSssdConfigs:
-            ldap_auth_disable_tls_never_use_in_production: True
 
         SharedStorage:
         - MountDir: /nfs
