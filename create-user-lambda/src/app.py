@@ -4,7 +4,6 @@ import boto3
 from ldap3 import Server, Connection, ALL
 import cfnresponse
 import uuid
-import subprocess
 
 def get_secret(secret_name):
     #region_name = "us-west-2"
@@ -38,26 +37,6 @@ def create_user(conn, dn, user_attributes, ad_search_base):
         print(f"Error creating user {dn}: {e}")
         raise
 
-def create_certificate(domain):
-    try:
-        private_key = f"/tmp/{domain}.key"
-        certificate = f"/tmp/{domain}.crt"
-        cmd = [
-            "/var/task/openssl",  # Reference the openssl binary correctly
-            "req", "-x509", "-sha256", "-nodes", "-newkey", "rsa:2048",
-            "-keyout", private_key, "-days", "365", "-out", certificate,
-            "-subj", f"/CN={domain}"
-        ]
-        subprocess.run(cmd, check=True)
-        with open(private_key, 'r') as f:
-            private_key_content = f.read()
-        with open(certificate, 'r') as f:
-            certificate_content = f.read()
-        return private_key_content, certificate_content
-    except Exception as e:
-        print(f"Error creating certificate for {domain}: {e}")
-        raise
-
 def lambda_handler(event, context):
     print("lambda location", os.getcwd())
 
@@ -65,24 +44,25 @@ def lambda_handler(event, context):
     print(f"Event received: {json.dumps(event)}")
     response_status = cfnresponse.SUCCESS
     response_data = {}
-
+    region_name = os.environ['AWS_REGION']
+    sm = boto3.client("secretsmanager", region_name=region_name)
     try:
         properties = event.get('ResourceProperties', {})
-        secret_name = properties.get('AdminSecretArn')
+        admin_secret_arn = properties.get('AdminSecretArn')
+        readonly_secret_arn = properties.get('ADReadOnlySecretArn')
         directory_domain = properties.get('DirectoryDomain')
         dns_ip1 = properties.get('DnsIp1')
         dns_ip2 = properties.get('DnsIp2')
         directory_id = properties.get('DirectoryId')
-        cert_secret_arn = properties.get('DomainCertificateSecretArn')
-        key_secret_arn = properties.get('DomainPrivateKeySecretArn')
         ad_search_base = properties.get('SearchBase') # OU=Users,OU=example,DC=example,DC=com
+        admin_dn = f"cn=Admin,{ad_search_base}"
 
-        if not all([secret_name, directory_domain, dns_ip1, dns_ip2, directory_id, cert_secret_arn, key_secret_arn]):
+        if not all([admin_secret_arn, readonly_secret_arn, directory_domain, dns_ip1, dns_ip2, directory_id]):
             raise KeyError("One or more required properties are missing")
 
-        secret = get_secret(secret_name)
-        admin_dn = secret.get("admin_dn", "Admin")
-        admin_password = secret.get("admin_password")
+        admin_password = sm.get_secret_value(SecretId=admin_secret_arn)["SecretString"]
+        readonly_password = sm.get_secret_value(SecretId=readonly_secret_arn)["SecretString"]
+        tandemviz_password = readonly_password
 
         server_address = f"ldap://{dns_ip1}"
         server = Server(server_address, get_info=ALL, use_ssl=False)
@@ -93,8 +73,6 @@ def lambda_handler(event, context):
         else:
             print(f"Bind failed: {conn.result}")
 
-        readonly_password = str(uuid.uuid4())
-        tandemviz_password = str(uuid.uuid4())
 
         readonly_user_dn = f"CN=ReadOnlyUser,{ad_search_base}"
         readonly_user_attributes = {
@@ -117,20 +95,6 @@ def lambda_handler(event, context):
         }
         create_user(conn, tandemviz_user_dn, tandemviz_user_attributes, ad_search_base)
         response_data['TandemvizPassword'] = tandemviz_password
-
-        # Create and store the certificate
-        private_key_content, certificate_content = create_certificate(directory_domain)
-
-        secrets_manager = boto3.client('secretsmanager')
-
-        secrets_manager.put_secret_value(
-            SecretId=key_secret_arn,
-            SecretString=private_key_content
-        )
-        secrets_manager.put_secret_value(
-            SecretId=cert_secret_arn,
-            SecretString=certificate_content
-        )
 
     except KeyError as e:
         print(f"KeyError: {e}")

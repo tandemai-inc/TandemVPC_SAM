@@ -9,16 +9,6 @@ Parameters:
     Description: Admin password Secret ARN
     NoEcho: true
 
-  DomainCertificateSecretArn:
-    Type: String
-    Description: ARN for Domain Cert Secret
-    NoEcho: true
-
-  DomainPrivateKeySecretArn:
-    Type: String
-    Description: ARN for Domain Private Key Secret
-    NoEcho: true
-
   DirectoryDomain:
     Type: String
     Description: Directory domain name
@@ -44,7 +34,7 @@ Parameters:
     Description: Security group for Lambda to access LDAP
     Type: AWS::EC2::SecurityGroup::Id
 
-  ADReadOnlySecret:
+  ADReadOnlySecretArn:
     Type: String
     Description: ARN for ReadOnly Secret
     NoEcho: true
@@ -80,8 +70,7 @@ Resources:
       DnsIp2: !Ref DnsIp2
       DirectoryId: !Ref DirectoryId
       AdminSecretArn: !Ref AdminSecretArn
-      DomainCertificateSecretArn: !Ref DomainCertificateSecretArn
-      DomainPrivateKeySecretArn: !Ref DomainPrivateKeySecretArn
+      ADReadOnlySecretArn: !Ref ADReadOnlySecretArn
       SearchBase: !Ref ADSearchBase
 
   CreateUserLambdaRole:
@@ -107,8 +96,9 @@ Resources:
                   - ds:CreateUser
                   - ds:ResetUserPassword
                   - secretsmanager:GetSecretValue
-                  - secretsmanager:PutSecretValue
-                Resource: "*"
+                Resource:
+                  - !Ref ADReadOnlySecretArn
+                  - !Ref AdminSecretArn
         - PolicyName: SFNXDeployWorkflowDefinitionPolicy
           PolicyDocument:
             Version: 2012-10-17

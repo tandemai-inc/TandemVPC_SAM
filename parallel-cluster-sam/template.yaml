@@ -228,6 +228,14 @@ Resources:
               DefaultAdminPolicy: !Ref ParallelClusterIamAdminPolicy,
               EventsPolicy: !Ref EventsPolicy,
               S3Policy: !Ref S3Policy }
+      Policies:
+        - PolicyName: SFNXDeployWorkflowDefinitionPolicy
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:Get*"
+                Resource: "*"
 
   PclusterCustomResourceBucket:
     Type: AWS::S3::Bucket
