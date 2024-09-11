@@ -10,10 +10,10 @@ You need SAM cli tool (https://docs.aws.amazon.com/serverless-application-model/
 	sam build --template-file template.yaml
 ## Package
 
-        sam package --s3-bucket tandemserverless --s3-prefix master/<sub-folder> --output-template-file packaged-template.yaml
+        sam package --s3-bucket serverlessbucket --s3-prefix master/<sub-folder> --output-template-file packaged-template.yaml
 
 ## Then add to AWS Serverless Application Repository
-aws sts assume-role --role-arn arn:aws:iam::xxxx:role/xxxx --profile tandem_us --role-session-name "RoleSessionUSProd"
+aws sts assume-role --role-arn arn:aws:iam::xxxx:role/xxxx --profile profile --role-session-name "RoleSessionUSProd"
 
 
 export AWS_ACCESS_KEY_ID=
