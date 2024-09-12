@@ -3,8 +3,7 @@ import os
 import boto3
 from ldap3 import Server, Connection, ALL
 import cfnresponse
-import uuid
-
+import time
 def get_secret(secret_name):
     #region_name = "us-west-2"
     region_name = os.environ['AWS_REGION']
@@ -46,6 +45,7 @@ def lambda_handler(event, context):
     response_data = {}
     region_name = os.environ['AWS_REGION']
     sm = boto3.client("secretsmanager", region_name=region_name)
+    ds = boto3.client("ds")
     try:
         properties = event.get('ResourceProperties', {})
         admin_secret_arn = properties.get('AdminSecretArn')
@@ -83,7 +83,9 @@ def lambda_handler(event, context):
             'sAMAccountName': 'ReadOnlyUser'
         }
         create_user(conn, readonly_user_dn, readonly_user_attributes, ad_search_base)
-        response_data['ReadOnlyUserPassword'] = readonly_password
+        # reset so that this can be bound
+        time.sleep(3)
+        ds.reset_user_password(DirectoryId=directory_id, UserName='ReadOnlyUser', NewPassword=readonly_password)
 
         tandemviz_user_dn = f"CN=tandemviz,{ad_search_base}"
         tandemviz_user_attributes = {
@@ -94,7 +96,7 @@ def lambda_handler(event, context):
             'sAMAccountName': 'tandemviz'
         }
         create_user(conn, tandemviz_user_dn, tandemviz_user_attributes, ad_search_base)
-        response_data['TandemvizPassword'] = tandemviz_password
+
 
     except KeyError as e:
         print(f"KeyError: {e}")

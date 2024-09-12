@@ -93,12 +93,21 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - ds:CreateUser
-                  - ds:ResetUserPassword
                   - secretsmanager:GetSecretValue
                 Resource:
                   - !Ref ADReadOnlySecretArn
                   - !Ref AdminSecretArn
+        - PolicyName: ResetPassword
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ds:CreateUser
+                  - ds:ResetUserPassword
+                Resource: !Sub
+                  - arn:${AWS::Partition}:ds:${AWS::Region}:${AWS::AccountId}:directory/${DirectoryId}
+                  - { DirectoryId: !Ref DirectoryId }
         - PolicyName: SFNXDeployWorkflowDefinitionPolicy
           PolicyDocument:
             Version: 2012-10-17
